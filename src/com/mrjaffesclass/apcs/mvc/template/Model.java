@@ -1,83 +1,62 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package com.mrjaffesclass.apcs.mvc.template;
 
-import com.mrjaffesclass.apcs.messenger.*;
-import java.awt.Color;
+import com.mrjaffesclass.apcs.messenger.MessageHandler;
+import com.mrjaffesclass.apcs.messenger.Messenger;
 import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import javax.swing.JToggleButton;
 
-/**
- * The model represents the data that the app uses.
- *
- * @author Roger Jaffe
- * @version 1.0
- */
-public class Model implements MessageHandler {
+public class Square implements MessageHandler {
 
-    // Messaging system for the MVC
-    private final Messenger mvcMessaging;
-    private boolean[][] bombMap = new boolean[8][8];
+    private Messenger messenger;
+    private int x, y;
+    private JToggleButton button;
+    private boolean selected;
 
-    /**
-     * Model constructor: Create the data representation of the program
-     *
-     * @param messages Messaging class instantiated by the Controller for local
-     * messages between Model, View, and controller
-     */
-    public Model(Messenger messages) {
-        mvcMessaging = messages;
+    Square(int x, int y, Messenger messenger) {
+        this.messenger = messenger;
+        this.x = x;
+        this.y = y;
+        button = new JToggleButton();
+        listener();
+        messenger.subscribe("GameOver:Reset", this);
     }
 
-    /**
-     * Initialize the model here and subscribe to any required messages
-     */
-    public void init() {
-        mvcMessaging.subscribe("Square:position", this);
-        mvcMessaging.subscribe("GameOver:Reset", this);
-        generateBombMap();
-    }
+    private void listener() {
+        button.addActionListener(new ActionListener() {
 
-    private void generateBombMap() {
-
-            for (int y = 0; y < 8; y++) {
-            for (int x = 0; x < 8; x++) {
-                    bombMap[x][y] = false;
+            public void actionPerformed(ActionEvent e) {
+                //Execute when button is pressed
+                if (!selected) {
+                    messenger.notify("Square:position", new Dimension(x, y), true);
+                }
+                selected = true;
+                button.setSelected(true);
             }
-        }
-        
-        int count = 0;
-        while (count < 10) {
-            int rand1 = (int) (Math.random() * 8);
-            int rand2 = (int) (Math.random() * 8);
-            if (!bombMap[rand1][rand2]) {
-                bombMap[rand1][rand2] = true;
-                count++;
-            }
-
-        }
-    
+        });
     }
 
-    private void checkBombMap(Dimension dimension) {
-        if (bombMap[(int) dimension.width][(int) dimension.height]) {
-            mvcMessaging.notify("Model:LoseALife");
-
-        } else {
-            mvcMessaging.notify("Model:ScoreAPoint");
-
-        }
+    public JToggleButton getButton() {
+        return button;
     }
 
-    private void resetBoard() {
-        generateBombMap();
+    private void reset(){
+        selected=false;
+        button.setSelected(false);
     }
-
     @Override
     public void messageHandler(String messageName, Object messagePayload) {
         switch (messageName) {
-            case "Square:position":
-                checkBombMap((Dimension) messagePayload);
+            case "GameOver:Reset":
+                reset();
                 break;
-                 case "GameOver:Reset": resetBoard();break;
+
         }
     }
-
 }
