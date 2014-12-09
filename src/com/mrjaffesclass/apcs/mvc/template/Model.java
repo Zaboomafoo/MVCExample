@@ -1,103 +1,129 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
 package com.mrjaffesclass.apcs.mvc.template;
 
-import com.mrjaffesclass.apcs.messenger.*;
+import com.mrjaffesclass.apcs.messenger.MessageHandler;
+import com.mrjaffesclass.apcs.messenger.Messenger;
+import java.awt.BorderLayout;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.Label;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JSeparator;
 
 /**
- * The model represents the data that the app uses.
- * @author Roger Jaffe
- * @version 1.0
+ *
+ * @author barry
  */
-public class Model implements MessageHandler {
+public class View extends JFrame implements MessageHandler {
 
-  // Messaging system for the MVC
-  private final Messenger mvcMessaging;
+    private int numOfButtons = 8;
+    private final int BUTTON_SIZE = 30;
+    private final int BOARD_SIZE = BUTTON_SIZE * numOfButtons;
+    private Messenger messenger;
+    private Square[][] squares = new Square[numOfButtons][numOfButtons];
+    private JPanel panel = new JPanel();
+    private JPanel panel2 = new JPanel();
+    private int lives = 3;
+    private int score = 0;
+    private JLabel lifeLabel = new JLabel(lives + "");
+    private JLabel scoreLabel = new JLabel(score + "");
 
-  // Model's data variables
-  private int variable1;
-  private int variable2;
+    GridLayout layout1 = new GridLayout(0, 2);
+    GridLayout layout2 = new GridLayout(numOfButtons, numOfButtons);
 
-  /**
-   * Model constructor: Create the data representation of the program
-   * @param messages Messaging class instantiated by the Controller for 
-   *   local messages between Model, View, and controller
-   */
-  public Model(Messenger messages) {
-    mvcMessaging = messages;
-  }
-  
-  /**
-   * Initialize the model here and subscribe to any required messages
-   */
-  public void init() {
-    mvcMessaging.subscribe("view:changeButton", this);
-    setVariable1(10);
-    setVariable2(-10);
-  }
-  
-  @Override
-  public void messageHandler(String messageName, Object messagePayload) {
-    if (messagePayload != null) {
-      System.out.println("MSG: received by model: "+messageName+" | "+messagePayload.toString());
-    } else {
-      System.out.println("MSG: received by model: "+messageName+" | No data sent");
+    public View(Messenger messenger) {
+        super("MineSweeper");
+        this.messenger = messenger;
+        this.setResizable(false);
+        this.setLocationRelativeTo(null);
+
+        panel.setLayout(layout1);
+        panel.setLayout(layout2);
+        panel.setPreferredSize(new Dimension(BOARD_SIZE, BOARD_SIZE));
+        addSquares();
+
+        panel2.add(new Label("Score:"));
+        panel2.add(scoreLabel);
+        panel2.add(new Label("Lives:"));
+        panel2.add(lifeLabel);
+
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        add(panel, BorderLayout.NORTH);
+        add(new JSeparator(), BorderLayout.CENTER);
+        add(panel2, BorderLayout.SOUTH);
+        pack();
+
+        setVisible(true);
+
     }
-    MessagePayload payload = (MessagePayload)messagePayload;
-    int field = payload.getField();
-    int direction = payload.getDirection();
-    
-    if (direction == Constants.UP) {
-      if (field == 1) {
-        setVariable1(getVariable1()+Constants.FIELD_1_INCREMENT);
-      } else {
-        setVariable2(getVariable2()+Constants.FIELD_2_INCREMENT);
-      }
-    } else {
-      if (field == 1) {
-        setVariable1(getVariable1()-Constants.FIELD_1_INCREMENT);
-      } else {
-        setVariable2(getVariable2()-Constants.FIELD_2_INCREMENT);
-      }      
+
+    public void init() {
+        messenger.subscribe("Model:ScoreAPoint", this);
+        messenger.subscribe("Model:LoseALife", this);
+        messenger.subscribe("GameOver:Reset", this);
     }
-  }
 
-  /**
-   * Getter function for variable 1
-   * @return Value of variable1
-   */
-  public int getVariable1() {
-    return variable1;
-  }
+    private void addSquares() {
+        int counter = 0;
+        for (int y = 0; y < numOfButtons; y++) {
+            for (int x = 0; x < numOfButtons; x++) {
+                squares[x][y] = new Square(x, y, messenger);
+                panel.add(squares[x][y].getButton());
 
-  /**
-   * Setter function for variable 1
-   * @param v New value of variable1
-   */
-  public void setVariable1(int v) {
-    variable1 = v;
-    // When we set a new value to variable 1 we need to also send a
-    // message to let other modules know that the variable value
-    // was changed
-    mvcMessaging.notify("model:variable1Changed", variable1, true);
-  }
-  
-  /**
-   * Getter function for variable 1
-   * @return Value of variable2
-   */
-  public int getVariable2() {
-    return variable2;
-  }
-  
-  /**
-   * Setter function for variable 2
-   * @param v New value of variable 2
-   */
-  public void setVariable2(int v) {
-    variable2 = v;
-    // When we set a new value to variable 2 we need to also send a
-    // message to let other modules know that the variable value
-    // was changed
-    mvcMessaging.notify("model:variable2Changed", variable2, true);
-  }
+            }
+        }
+    }
 
+    private void loseALife() {
+        lives--;
+        lifeLabel.setText(lives + "");
+        if (lives <= 0) {
+            messenger.notify("View:SendScore", score);
+            messenger.notify("View:EndGame", false);
+            
+            setVisible(false);
+        }
+    }
+
+    private void scoreAPoint() {
+        score++;
+        scoreLabel.setText(score + "");
+        if (score >= 54) {
+        messenger.notify("View:SendScore", score);
+            messenger.notify("View:EndGame", true);
+        
+        }
+    }
+
+    private void reset() {
+        score = 0;
+        lives = 3;
+        scoreLabel.setText(score + "");
+        lifeLabel.setText(lives + "");
+        setVisible(true);
+    }
+
+    @Override
+    public void messageHandler(String messageName, Object messagePayload) {
+        switch (messageName) {
+            case "Model:LoseALife":
+                loseALife();
+                break;
+            case "Model:ScoreAPoint":
+                scoreAPoint();
+                break;
+            case "GameOver:Reset":
+                reset();
+                break;
+        }
+    }
 }
